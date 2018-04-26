@@ -17,7 +17,7 @@ class DecimalJSONEncoder(json.JSONEncoder):
 
 
 class Measurement(object):
-    def __init__(self, timeseries_id, timeseries_element, filename):
+    def __init__(self, timeseries_id, timeseries_element, filename, tld=None):
         self.date = timeseries_element[0]
         if len(timeseries_element) <= 2:
             self.value = timeseries_element[1]
@@ -26,6 +26,7 @@ class Measurement(object):
         self.doc_id = self.get_doc_id(timeseries_element, timeseries_id)
         self.timeseries_id = timeseries_id
         self.filename = filename
+        self.tld = tld
 
     def get_doc_id(self, array, timeseries_id):
         array_str = '{} {}'.format(json.dumps(array, cls=DecimalJSONEncoder), timeseries_id)
@@ -45,6 +46,8 @@ class Measurement(object):
         dct["measurement"]['type'] = "Measurement"
         dct['doc_id'] = self.doc_id
         dct['measurement']['provenance_filename'] = self.filename
+        if self.tld:
+            dct['tld'] = self.tld
         return dct
 
 
@@ -71,10 +74,11 @@ class Trend(object):
 
 
 class TimeSeries(object):
-    def __init__(self, meta_data, dataset):
+    def __init__(self, meta_data, dataset, tld=None):
         self.meta_data = meta_data
         self.dataset = dataset
         self.doc_id = self.get_doc_id(meta_data)
+        self.tld = tld
 
     def get_doc_id(self, meta_data):
         if self.dataset.strip() != "" and 'name' in meta_data:
@@ -94,6 +98,8 @@ class TimeSeries(object):
         dct["measure"]["metadata"] = self.meta_data
         dct["measure"]['type'] = "Measure"
         dct['doc_id'] = self.doc_id
+        if self.tld:
+            dct['tld'] = self.tld
         dct["measure"]['provenance_filename'] = dct['measure']['metadata']['provenance']['filename']
         return dct
 
@@ -162,11 +168,11 @@ class ProcessTimeSeries():
                     ts[i] = [ts[i][0], str(value)]
             return ts
 
-    def processs(self, tables, dataset_name):
+    def processs(self, tables, dataset_name, tld):
         result = []
         for sheet in tables:
             for timeseries in sheet:
-                ts = TimeSeries(timeseries['metadata'], dataset_name)
+                ts = TimeSeries(timeseries['metadata'], dataset_name, tld=tld)
                 processed_ts = self.impute_values(timeseries['ts'], 0.8)
                 if processed_ts is not None:
                     ts_dict = ts.to_dict()
@@ -182,7 +188,7 @@ class ProcessTimeSeries():
                     filename = ts_dict["measure"]['provenance_filename']
                     # measurement
                     for ts_element in processed_ts:
-                        measurement = Measurement(ts.doc_id, ts_element, filename)
+                        measurement = Measurement(ts.doc_id, ts_element, filename, tld=tld)
                         result.append(measurement.to_dict())
                     # trend
                     if 'ts_description' in timeseries:
@@ -231,15 +237,18 @@ def main():
     parser = OptionParser()
     parser.add_option("-d", "--dataset", dest="dataset", type="string",
                       help="dataset name", default="")
+    parser.add_option("-t", "--tld", dest="tld", type="string",
+                      help="tld, to be put all the docs under", default="")
     (c_options, args) = parser.parse_args()
     input_path = args[0]
     output_file = args[1]
     dataset_name = c_options.dataset
+    tld = c_options.tld
 
     test = ProcessTimeSeries()
     tables = test.load_json(input_path)
     # print test.processs(tables)
-    test.write_result_to_file(output_file, test.processs(tables, dataset_name))
+    test.write_result_to_file(output_file, test.processs(tables, dataset_name, tld))
 
 
 if __name__ == "__main__":
