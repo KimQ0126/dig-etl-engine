@@ -515,7 +515,7 @@ def create_jl_file_from_csv(csv_file, mapping_spec=None, mapping_file=None, outp
             mapping_spec = json.loads(open_file.read())
             open_file.close()
 
-    ti = TabularImport(csv_file, mapping_spec, )
+    ti = TabularImport(csv_file, mapping_spec)
     ti.apply_nested_configs_to_all_objects()
     ti.nest_generated_json()
     new_file = output_filename
