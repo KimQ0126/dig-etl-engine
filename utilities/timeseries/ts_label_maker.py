@@ -36,12 +36,14 @@ f_output = codecs.open(fn_temp, 'w')
 
 fmt = PartialFormatter(missing='')
 
-label_generator = json.loads(f_spec.read())['TS_meaure_transfer']['label']
-for line in f_input:
-    obj = json.loads(line)
-    if 'measure' in obj:
-        obj['measure']['metadata']['label'] = fmt.format(label_generator, **obj['measure']['metadata'])
-    f_output.write(json.dumps(obj) + '\n')
+spec_obj = json.loads(f_spec.read())
+if 'TS_meaure_transfer' in spec_obj:
+    for line in f_input:
+        obj = json.loads(line)
+        if 'measure' in obj:
+            for k, v in spec_obj['TS_meaure_transfer']:
+                obj['measure']['metadata'][k] = fmt.format(obj['measure'][v], **obj['measure']['metadata'])
+        f_output.write(json.dumps(obj) + '\n')
 
 f_spec.close()
 f_input.close()
@@ -49,3 +51,4 @@ f_output.close()
 
 # os.remove(fn)
 # os.rename(fn_temp, fn)
+

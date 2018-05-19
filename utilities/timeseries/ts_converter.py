@@ -191,9 +191,9 @@ class ProcessTimeSeries():
                         measurement = Measurement(ts.doc_id, ts_element, filename, tld=tld)
                         result.append(measurement.to_dict())
                     # trend
-                    if 'ts_description' in timeseries:
+                    if 'time_series_description' in timeseries:
                         try:
-                            for trend_element in timeseries['ts_description']['linear fits']:
+                            for trend_element in timeseries['time_series_description']['recursive segmentation']['linear fits']:
                                 trend = Trend(ts.doc_id, trend_element, filename)
                                 result.append(trend.to_dict())
                         except:
