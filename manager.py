@@ -22,6 +22,8 @@ logger.setLevel(config['logstash']['level'])
 #     logstash.LogstashHandler(
 #         config['logstash']['host'], config['logstash']['port'], version=config['logstash']['version']))
 logger.addHandler(logging.FileHandler('log.log'))
+
+
 # logging.getLogger('werkzeug').setLevel(logging.ERROR) # turn off werkzeug logger for normal info
 
 @app.route('/')
@@ -82,7 +84,6 @@ def run_etk():
 
 @app.route('/kill_etk', methods=['POST'])
 def kill_etk():
-
     args = request.get_json(force=True)
     if 'project_name' not in args:
         return jsonify({'error_message': 'invalid project_name'}), 400
@@ -99,7 +100,6 @@ def kill_etk():
 
 
 def kill_and_clean_up_queue(args, project_config):
-
     kill_etk_process(args['project_name'], True)
 
     # reset input offset in `dig` group
@@ -112,6 +112,7 @@ def kill_and_clean_up_queue(args, project_config):
         output_partitions = project_config.get('output_partitions', config['output_partitions'])
         seek_to_topic_end(args['project_name'] + '_out', output_partitions,
                           config['output_server'])
+
 
 # @app.route('/delete_topics', methods=['POST'])
 # def delete_topics():
@@ -140,16 +141,18 @@ def etk_status(project_name):
     output = p.stdout.read()
     try:
         process_num = int(output) / 2
-        return jsonify({'etk_processes':process_num})
+        return jsonify({'etk_processes': process_num})
     except:
         logger.exception('etk_status error: {}'.format(project_name))
         return 'error', 500
+
 
 @app.route('/debug/ps', methods=['GET'])
 def debug_ps():
     p = subprocess.Popen('ps -ef | grep -v grep | grep "tag-mydig-etk"', stdout=subprocess.PIPE, shell=True)
     output = p.stdout.read()
     return output, 200
+
 
 def ensure_topic_exists(topic, zookeeper_server, partitions):
     # kafka-topics.sh --create --if-not-exists
@@ -177,7 +180,7 @@ def seek_to_topic_end(topic, num_partitions, consumers, group_id=None):
         group_id=group_id)
     # need to manually assign partitions if seek_to_end needs to be used here
     partitions = [TopicPartition(topic, i) for i in xrange(num_partitions)]
-    consumer.assign(partitions) # conflict to subscribe
+    consumer.assign(partitions)  # conflict to subscribe
     consumer.seek_to_end()
     logger.info('seek_to_topic_end finish: {}'.format(topic))
 
@@ -229,7 +232,7 @@ def run_etk_processes(project_name, processes, project_config):
             output_args=json.dumps(project_config.get('output_args', {})).replace('"', '\\"')
         )
         print cmd
-        p = subprocess.Popen(cmd, shell=True) # async
+        p = subprocess.Popen(cmd, shell=True)  # async
 
     logger.info('run_etk_processes finish: {}'.format(project_name))
     print 'run_etk_processes finish'
@@ -246,40 +249,40 @@ def kill_etk_process(project_name, ignore_error=False):
 
 def update_logstash_pipeline(project_name, output_server, output_topic, output_partition):
     content = \
-'''input {{
-  kafka {{
-    bootstrap_servers => ["{server}"]
-    topics => ["{output_topic}"]
-    consumer_threads => "{output_partition}"
-    codec => json {{}}
-    type => "{project_name}"
-    max_partition_fetch_bytes => "10485760"
-    max_poll_records => "10"
-    fetch_max_wait_ms => "1000"
-    poll_timeout_ms => "1000"
-   }}
-}}
-filter {{
-  if [type] == "{project_name}" {{
-    mutate {{ remove_field => ["_id"] }}
-  }}
-}}
-output {{
-  if [type] == "{project_name}" {{
-    elasticsearch {{
-      document_id  => "%{{doc_id}}"
-      document_type => "ads"
-      hosts => ["{es_server}"]
-      index => "{project_name}"
-    }}
-  }}
-}}'''.format(
-    server='","'.join(output_server),
-    output_topic=output_topic,
-    output_partition=output_partition,
-    project_name=project_name,
-    es_server=config['es_server']
-)
+        '''input {{
+          kafka {{
+            bootstrap_servers => ["{server}"]
+            topics => ["{output_topic}"]
+            consumer_threads => "{output_partition}"
+            codec => json {{}}
+            type => "{project_name}"
+            max_partition_fetch_bytes => "10485760"
+            max_poll_records => "10"
+            fetch_max_wait_ms => "1000"
+            poll_timeout_ms => "1000"
+           }}
+        }}
+        filter {{
+          if [type] == "{project_name}" {{
+            mutate {{ remove_field => ["_id"] }}
+          }}
+        }}
+        output {{
+          if [type] == "{project_name}" {{
+            elasticsearch {{
+              document_id  => "%{{doc_id}}"
+              document_type => "ads"
+              hosts => ["{es_server}"]
+              index => "{project_name}"
+            }}
+          }}
+        }}'''.format(
+            server='","'.join(output_server),
+            output_topic=output_topic,
+            output_partition=output_partition,
+            project_name=project_name,
+            es_server=config['es_server']
+        )
 
     path = os.path.join(config['logstash']['pipeline'], 'logstash-{}.conf'.format(project_name))
     if not os.path.exists(path):
@@ -291,9 +294,9 @@ def create_mappings(index_name, payload_file_path):
     try:
         url = '{}/{}'.format(config['es_url'], index_name)
         resp = requests.get(url)
-        if resp.status_code // 100 == 4: # if no such index there
+        if resp.status_code // 100 == 4:  # if no such index there
             with codecs.open(payload_file_path, 'r') as f:
-                payload = f.read() # stringfied json
+                payload = f.read()  # stringfied json
             resp = requests.put(url, payload)
             if resp.status_code // 100 != 2:
                 print 'can not create es index for {}'.format(index_name)
